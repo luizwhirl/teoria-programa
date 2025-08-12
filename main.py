@@ -1,5 +1,11 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
 from collections import deque
 import sys
+
+# --------------------------------------------------------------------------- #
+#  A SUA CLASSE ORIGINAL (LÓGICA DO PROBLEMA) - NENHUMA ALTERAÇÃO NECESSÁRIA  #
+# --------------------------------------------------------------------------- #
 
 class AutomatoTravessia:
     """
@@ -14,164 +20,170 @@ class AutomatoTravessia:
             estado_inicial (tuple): A configuração inicial de onde começar a resolução.
         """
         if not self.is_valid_state(estado_inicial):
-            # Esta verificação é uma salvaguarda. A validação principal é feita no main.
             raise ValueError(f"O estado inicial fornecido {estado_inicial} é inválido e viola as regras.")
             
-        # q₀ (Estado Inicial): (Fazendeiro, Lobo, Cabra, Repolho)
         self.estado_inicial = estado_inicial
-
-        # F (Estado Final)
         self.estado_final = ('D', 'D', 'D', 'D')
-
-        # Σ (Alfabeto de Entrada / Ações)
         self.alfabeto = ["lobo", "cabra", "repolho", "sozinho"]
         self.item_map = {"lobo": 1, "cabra": 2, "repolho": 3}
 
     def is_valid_state(self, estado):
-        """
-        Verifica se um estado viola alguma regra do problema.
-        Retorna False se o estado for inválido.
-        """
         _fazendeiro, lobo, cabra, repolho = estado
-
-        # Regra 1: Lobo não pode ficar sozinho com a cabra.
-        if lobo == cabra and _fazendeiro != lobo:
-            return False
-
-        # Regra 2: Cabra não pode ficar sozinha com o repolho.
-        if cabra == repolho and _fazendeiro != cabra:
-            return False
-
+        if lobo == cabra and _fazendeiro != lobo: return False
+        if cabra == repolho and _fazendeiro != cabra: return False
         return True
 
     def transition(self, estado_atual, acao):
-        """
-        δ (Função de Transição): Calcula o próximo estado dado um estado e uma ação.
-        Retorna o novo estado se a transição for válida, senão retorna None.
-        """
         fazendeiro_pos = estado_atual[0]
-        
         if acao != "sozinho":
             item_index = self.item_map[acao]
-            if estado_atual[item_index] != fazendeiro_pos:
-                return None
-
+            if estado_atual[item_index] != fazendeiro_pos: return None
         proxima_pos_fazendeiro = 'D' if fazendeiro_pos == 'E' else 'E'
         proximo_estado = list(estado_atual)
         proximo_estado[0] = proxima_pos_fazendeiro
-        
         if acao != "sozinho":
             proximo_estado[self.item_map[acao]] = proxima_pos_fazendeiro
-
         proximo_estado_tupla = tuple(proximo_estado)
-        
-        if self.is_valid_state(proximo_estado_tupla):
-            return proximo_estado_tupla
-        else:
-            return None
+        return proximo_estado_tupla if self.is_valid_state(proximo_estado_tupla) else None
 
     def resolver_bfs(self):
-        """
-        Usa o algoritmo de Busca em Largura (BFS) para encontrar o caminho mais curto.
-        """
-        if self.estado_inicial == self.estado_final:
-            return [[self.estado_inicial]]
-            
+        if self.estado_inicial == self.estado_final: return [[self.estado_inicial]]
         fila = deque([[self.estado_inicial]])
         visitados = {self.estado_inicial}
-
         while fila:
             caminho_atual = fila.popleft()
             ultimo_estado = caminho_atual[-1]
-
-            if ultimo_estado == self.estado_final:
-                return caminho_atual
-
+            if ultimo_estado == self.estado_final: return caminho_atual
             for acao in self.alfabeto:
                 novo_estado = self.transition(ultimo_estado, acao)
-                
                 if novo_estado and novo_estado not in visitados:
                     visitados.add(novo_estado)
                     novo_caminho = list(caminho_atual)
                     novo_caminho.append(novo_estado)
                     fila.append(novo_caminho)
-        
         return None
 
-    def imprimir_solucao(self, caminho):
-        """
-        Imprime a solução encontrada de forma legível.
-        """
-        if not caminho:
-            print("\n>> Não foi encontrada uma solução a partir do estado fornecido.")
-            return
+# ---------------------------------------------------------------- #
+#  CLASSE DA INTERFACE GRÁFICA (GUI) - COM MÉTODO DE DESENHO MELHORADO #
+# ---------------------------------------------------------------- #
 
-        print("\n Solução Encontrada para o Problema da Travessia")
-        print(f"Estado Inicial: {caminho[0]}")
-        print("-" * 55)
+class TravessiaApp(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Solucionador do Problema da Travessia")
+        self.geometry("950x700") # Janela um pouco maior para acomodar o desenho
 
-        # Se o caminho tem apenas um estado, significa que já começou no estado final.
-        if len(caminho) == 1:
-            print("O estado inicial já é o estado final. Sem travessias a fazer.")
-        else:
-            for i in range(len(caminho) - 1):
-                estado_anterior = caminho[i]
-                estado_atual = caminho[i+1]
-                
-                origem = 'esquerda' if estado_anterior[0] == 'E' else 'direita'
-                destino = 'direita' if estado_atual[0] == 'D' else 'esquerda'
-                
-                item_movido = "sozinho"
-                for item, index in self.item_map.items():
-                    if estado_anterior[index] != estado_atual[index]:
-                        item_movido = item
-                        break
-                
-                print(f"Passo {i+1}: Fazendeiro atravessa da {origem} para {destino} levando o/a {item_movido}")
-                print(f"   Novo estado das margens: {estado_atual}")
+        control_frame = ttk.Frame(self, padding="10")
+        control_frame.pack(fill=tk.X)
+
+        ttk.Label(control_frame, text="Estado Inicial (F L C R):").pack(side=tk.LEFT, padx=(0, 5))
         
-        print("-" * 55)
-        print("Todos chegaram à margem direita em segurança")
+        self.estado_entry = ttk.Entry(control_frame, width=20)
+        self.estado_entry.insert(0, "E E E E")
+        self.estado_entry.pack(side=tk.LEFT, padx=5)
 
+        self.solve_button = ttk.Button(control_frame, text="Resolver e Desenhar", command=self.resolver_e_desenhar)
+        self.solve_button.pack(side=tk.LEFT, padx=5)
 
-def main():
-    """
-    Função principal para interagir com o usuário e executar o programa.
-    """
-    while True:
-        print("\nInsira o estado inicial no formato: F L C R")
-        print("Onde F=Fazendeiro, L=Lobo, C=Cabra, R=Repolho.")
-        try:
-            entrada_usuario = input("Digite o estado inicial: ").strip().upper()
-        except KeyboardInterrupt:
-            sys.exit()
+        self.canvas = tk.Canvas(self, bg="white", highlightthickness=0)
+        self.canvas.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
+    def _get_movimento_label(self, estado_anterior, estado_atual, item_map):
+        origem = "Esquerda" if estado_anterior[0] == 'E' else "Direita"
+        destino = "Direita" if estado_atual[0] == 'D' else "Esquerda"
+        
+        item_movido = "sozinho"
+        for item, index in item_map.items():
+            if estado_anterior[index] != estado_atual[index]:
+                item_movido = item
+                break
+        
+        if item_movido == "sozinho":
+             return f"Volta sozinho"
+        else:
+             return f"Leva o/a {item_movido}"
+
+    def resolver_e_desenhar(self):
+        self.canvas.delete("all")
+        entrada_usuario = self.estado_entry.get().strip().upper()
         partes = entrada_usuario.split()
 
-        # Validação do formato da entrada
         if len(partes) != 4 or not all(p in ['E', 'D'] for p in partes):
-            print("\nFormato inválido. Insira 4 valores ('E' ou 'D') separados por espaço")
-            continue
-        
+            messagebox.showerror("Erro de Formato", "Formato inválido. Insira 4 valores ('E' ou 'D') separados por espaço.\nExemplo: E E E E")
+            return
+            
         estado_inicial_usuario = tuple(partes)
+
+        automato_temp = AutomatoTravessia()
+        if not automato_temp.is_valid_state(estado_inicial_usuario):
+            messagebox.showerror("Estado Inválido", "O estado inicial viola as regras do problema.\n(Lobo/Cabra ou Cabra/Repolho não podem ficar sozinhos).")
+            return
+
+        automato = AutomatoTravessia(estado_inicial=estado_inicial_usuario)
+        caminho_solucao = automato.resolver_bfs()
+
+        if not caminho_solucao:
+            messagebox.showinfo("Sem Solução", "Não foi encontrada uma solução a partir do estado fornecido.")
+            return
         
-        # Validação das regras do jogo para o estado inicial
-        # É preciso criar uma instância temporária para usar o método de validação
-        if not AutomatoTravessia().is_valid_state(estado_inicial_usuario):
-            print(f"\nO estado inicial '{estado_inicial_usuario}' viola as regras do problema.")
-            print("O lobo não pode ficar com a cabra, e a cabra não pode ficar com o repolho, a menos que o fazendeiro esteja junto.")
-            continue
+        self.desenhar_solucao(caminho_solucao, automato.item_map)
 
-        # Se a entrada é válida, cria o autômato e tenta resolver
-        try:
-            automato = AutomatoTravessia(estado_inicial=estado_inicial_usuario)
-            caminho_solucao = automato.resolver_bfs()
-            automato.imprimir_solucao(caminho_solucao)
-            break # Encerra o loop após encontrar a solução
-        except ValueError as e:
-            # Captura o erro do __init__ como uma segurança extra
-            print(f"\n[ERRO] {e}")
+    def desenhar_solucao(self, caminho, item_map):
+        """
+        NOVO MÉTODO DE DESENHO:
+        - O texto fica fora dos nós.
+        - O layout é em "serpente" para caber na tela.
+        """
+        # Parâmetros de layout
+        nodes_per_row = 4
+        start_x, start_y = 120, 80
+        x_step, y_step = 220, 160 # Aumenta o espaçamento para o texto
+        node_radius = 30
+        
+        posicoes_nos = {} 
 
+        for i, estado in enumerate(caminho):
+            # Lógica para layout em serpente
+            row = i // nodes_per_row
+            col = i % nodes_per_row
+            
+            if row % 2 == 0:  # Linhas pares: da esquerda para a direita
+                x = start_x + col * x_step
+            else:  # Linhas ímpares: da direita para a esquerda
+                x = start_x + (nodes_per_row - 1 - col) * x_step
+            
+            y = start_y + row * y_step
+            
+            posicoes_nos[i] = (x, y)
+
+            # Desenha a seta e o rótulo da transição (a partir do segundo nó)
+            if i > 0:
+                px, py = posicoes_nos[i-1] # Posição do nó anterior
+                
+                # Desenha a linha da seta conectando o centro dos nós
+                self.canvas.create_line(px, py, x, y, arrow=tk.LAST, fill="darkgreen", width=1.5)
+
+                # Calcula a posição do rótulo da seta (no meio do caminho)
+                label_x = (px + x) / 2
+                label_y = (py + y) / 2 - 15 # Desloca um pouco para cima da linha
+                
+                label_text = self._get_movimento_label(caminho[i-1], estado, item_map)
+                # Adiciona um fundo branco ao texto para não colidir com a seta
+                bbox = self.canvas.create_text(label_x, label_y, text=label_text, font=("Arial", 10, "italic"), fill="darkgreen")
+                coords = self.canvas.bbox(bbox)
+                self.canvas.create_rectangle(coords, fill="white", outline="white")
+                self.canvas.lift(bbox) # Traz o texto para a frente
+
+            # Desenha o nó (círculo)
+            self.canvas.create_oval(x - node_radius, y - node_radius, x + node_radius, y + node_radius, fill="lightblue", outline="black", width=2)
+            
+            # --- POSICIONAMENTO CORRIGIDO DO TEXTO ---
+            # Escreve o nome do estado (q_i) ACIMA do círculo
+            self.canvas.create_text(x, y - node_radius - 15, text=f"q{i}", font=("Arial", 14, "bold"))
+            
+            # Escreve a configuração ABAIXO do círculo
+            self.canvas.create_text(x, y + node_radius + 15, text=str(estado), font=("Arial", 10), fill="black")
 
 if __name__ == "__main__":
-    main()
+    app = TravessiaApp()
+    app.mainloop()
