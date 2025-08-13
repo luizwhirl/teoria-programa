@@ -3,10 +3,6 @@ from tkinter import ttk, messagebox
 from collections import deque
 import sys
 
-# --------------------------------------------------------------------------- #
-#  A SUA CLASSE ORIGINAL (LÓGICA DO PROBLEMA) - NENHUMA ALTERAÇÃO NECESSÁRIA  #
-# --------------------------------------------------------------------------- #
-
 class AutomatoTravessia:
     """
     Modela o problema da Travessia (Lobo, Cabra, Repolho) como um Autômato Finito.
@@ -63,11 +59,8 @@ class AutomatoTravessia:
                     fila.append(novo_caminho)
         return None
 
-# ---------------------------------------------------------------- #
-#  CLASSE DA INTERFACE GRÁFICA (GUI) - COM MÉTODO DE DESENHO MELHORADO #
-# ---------------------------------------------------------------- #
-
-class TravessiaApp(tk.Tk):
+# classe da interface gráfica nesse diabo
+    class TravessiaApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Solucionador do Problema da Travessia")
@@ -177,7 +170,6 @@ class TravessiaApp(tk.Tk):
             # Desenha o nó (círculo)
             self.canvas.create_oval(x - node_radius, y - node_radius, x + node_radius, y + node_radius, fill="lightblue", outline="black", width=2)
             
-            # --- POSICIONAMENTO CORRIGIDO DO TEXTO ---
             # Escreve o nome do estado (q_i) ACIMA do círculo
             self.canvas.create_text(x, y - node_radius - 15, text=f"q{i}", font=("Arial", 14, "bold"))
             
