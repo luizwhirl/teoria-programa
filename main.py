@@ -100,10 +100,10 @@ class TravessiaApp(tk.Tk):
         self.canvas_animacao.pack(fill=tk.BOTH, expand=True)
 
         self.item_visuals = {
-            "fazendeiro": {"arquivo": "fazendeiro.png", "id": None, "size": (60, 60)},
-            "lobo":       {"arquivo": "lobo.png",       "id": None, "size": (55, 55)},
-            "cabra":      {"arquivo": "cabra.png",      "id": None, "size": (55, 55)},
-            "repolho":    {"arquivo": "repolho.png",    "id": None, "size": (50, 50)}
+            "fazendeiro": {"arquivo": "assets/fazendeiro.png", "id": None, "size": (60, 60)},
+            "lobo":       {"arquivo": "assets/lobo.png",       "id": None, "size": (55, 55)},
+            "cabra":      {"arquivo": "assets/cabra.png",      "id": None, "size": (55, 55)},
+            "repolho":    {"arquivo": "assets/repolho.png",    "id": None, "size": (50, 50)}
         }
         self.loaded_images = {}
         self._load_images()
@@ -118,7 +118,7 @@ class TravessiaApp(tk.Tk):
                 img = img.resize(visual["size"], Image.Resampling.LANCZOS)
                 self.loaded_images[key] = ImageTk.PhotoImage(img)
             
-            barco_img = Image.open("barco.png")
+            barco_img = Image.open("assets/barco.png")
             barco_img = barco_img.resize((150, 100), Image.Resampling.LANCZOS)
             self.loaded_images["barco"] = ImageTk.PhotoImage(barco_img)
 
@@ -330,14 +330,14 @@ class TravessiaApp(tk.Tk):
         fazendeiro_id = self.item_visuals["fazendeiro"]["id"]
         fx, fy = self.canvas_animacao.coords(fazendeiro_id)
         # ajustar posição do fazendeiro no baroco
-        self.canvas_animacao.move(fazendeiro_id, x_partida - fx - 15, y_barco - fy + 10)
+        self.canvas_animacao.move(fazendeiro_id, x_partida - fx - 15, y_barco - fy + 3)
         self.canvas_animacao.tag_raise(fazendeiro_id) 
         
         if passageiro_key:
             passageiro_id = self.item_visuals[passageiro_key]["id"]
             px, py = self.canvas_animacao.coords(passageiro_id)
             # ajusta passagero
-            self.canvas_animacao.move(passageiro_id, x_partida - px + 25, y_barco - py + 15) 
+            self.canvas_animacao.move(passageiro_id, x_partida - px + 25, y_barco - py + 10) 
             self.canvas_animacao.tag_raise(passageiro_id)
 
         self.movimento_suave(x_chegada - x_partida, 0, passageiro_key)
