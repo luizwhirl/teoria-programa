@@ -61,10 +61,17 @@ class TravessiaApp(tk.Tk):
         super().__init__()
         self.title("Solucionador do Problema da Travessia")
         self.geometry("1000x750")
+        self.minsize(800, 600)
 
         self.caminho_solucao = None
         self.passo_atual_animacao = 0
         self.animacao_em_curso = False
+        
+        # variaveis de controle para redimensionamento 
+        self._job_id_grafo = None
+        self._job_id_animacao = None
+        self.grafo_caminho_data = None
+        self.grafo_item_map_data = None
 
         control_frame = ttk.Frame(self, padding="10")
         control_frame.pack(fill=tk.X)
@@ -85,6 +92,7 @@ class TravessiaApp(tk.Tk):
         self.notebook.add(tab_grafo, text="Grafo da Solução")
         self.canvas_grafo = tk.Canvas(tab_grafo, bg="white", highlightthickness=0)
         self.canvas_grafo.pack(fill=tk.BOTH, expand=True)
+        self.canvas_grafo.bind("<Configure>", self._on_resize_grafo)
 
         self.tab_animacao = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_animacao, text="Animação da Travessia", state="disabled")
@@ -98,6 +106,8 @@ class TravessiaApp(tk.Tk):
 
         self.canvas_animacao = tk.Canvas(self.tab_animacao, highlightthickness=0)
         self.canvas_animacao.pack(fill=tk.BOTH, expand=True)
+        # evento de redimensionamento para animar o 
+        self.canvas_animacao.bind("<Configure>", self._on_resize_animacao)
 
         self.item_visuals = {
             "fazendeiro": {"arquivo": "assets/fazendeiro.png", "id": None, "size": (60, 60)},
@@ -121,9 +131,8 @@ class TravessiaApp(tk.Tk):
             barco_img = Image.open("assets/barco.png")
             barco_img = barco_img.resize((150, 100), Image.Resampling.LANCZOS)
             self.loaded_images["barco"] = ImageTk.PhotoImage(barco_img)
-
         except FileNotFoundError as e:
-            messagebox.showerror("Arquivo não encontrado", f"Não foi possível encontrar: {e.filename}\nCertifique-se que as imagens (.png) estão na mesma pasta.")
+            messagebox.showerror("Arquivo não encontrado", f"Não foi possível encontrar: {e.filename}\nCertifique-se que as imagens (.png) estão na pasta 'assets'.")
             self.destroy()
 
     def _get_movimento_label(self, estado_anterior, estado_atual, item_map):
@@ -166,126 +175,151 @@ class TravessiaApp(tk.Tk):
         if not self.caminho_solucao:
             messagebox.showinfo("Sem Solução", "Não foi encontrada uma solução a partir do estado fornecido.")
             return
-        
-        self.desenhar_solucao_grafo(self.caminho_solucao, automato.item_map)
+
+        # armazena os dados do grafo
+        self.grafo_caminho_data = self.caminho_solucao
+        self.grafo_item_map_data = automato.item_map
+        self._desenhar_solucao_grafo()
+
         self.preparar_animacao()
         self.notebook.tab(1, state="normal")
         self.notebook.select(1)
         self.start_anim_button.config(state="normal")
         self.reset_anim_button.config(state="normal")
 
-    def desenhar_solucao_grafo(self, caminho, item_map):
+    # metodos de desenho e responsidvidade VVVVVVVV (isso sao setas)
+
+    def _on_resize_grafo(self, event):
+        #função para desenhar grafo
+        if self._job_id_grafo:
+            self.after_cancel(self._job_id_grafo)
+        self._job_id_grafo = self.after(150, self._desenhar_solucao_grafo)
+
+    def _desenhar_solucao_grafo(self):
         self.canvas_grafo.delete("all")
+        if not self.grafo_caminho_data:
+            return
+
+        caminho = self.grafo_caminho_data
+        item_map = self.grafo_item_map_data
+        width = self.canvas_grafo.winfo_width()
+        height = self.canvas_grafo.winfo_height()
+
+        if width < 50 or height < 50: return
+
         nodes_per_row = 4
-        start_x, start_y = 120, 80
-        x_step, y_step = 220, 160
-        node_radius = 30
+        padding_x = width * 0.12
+        padding_y = height * 0.15
         
+        num_rows = math.ceil(len(caminho) / nodes_per_row)
+        x_step = (width - 2 * padding_x) / (nodes_per_row - 1) if nodes_per_row > 1 else 0
+        y_step = (height - 2 * padding_y) / (num_rows - 1) if num_rows > 1 else height / 2
+        
+        node_radius = min(width * 0.03, height * 0.04, 30)
         posicoes_nos = {} 
 
         for i, estado in enumerate(caminho):
             row = i // nodes_per_row
             col = i % nodes_per_row
             
-            if row % 2 == 0:
-                x = start_x + col * x_step
-            else:
-                x = start_x + (nodes_per_row - 1 - col) * x_step
-            y = start_y + row * y_step
+            x = (padding_x + col * x_step) if row % 2 == 0 else (width - padding_x - col * x_step)
+            y = (padding_y + row * y_step) if num_rows > 1 else padding_y
             posicoes_nos[i] = (x, y)
 
+        for i, estado in enumerate(caminho):
             if i > 0:
                 px, py = posicoes_nos[i-1]
+                x, y = posicoes_nos[i]
                 self.canvas_grafo.create_line(px, py, x, y, arrow=tk.LAST, fill="darkgreen", width=1.5)
                 
-                label_x = (px + x) / 2
-                label_y = (py + y) / 2 - 15
-                
+                label_x, label_y = (px + x) / 2, (py + y) / 2 - 15
                 movimento = self._get_movimento_label(caminho[i-1], estado, item_map).split(" para")[0]
-                bbox_item = self.canvas_grafo.create_text(label_x, label_y, text=movimento, font=("Arial", 10, "italic"), fill="darkgreen")
-                coords = self.canvas_grafo.bbox(bbox_item)
-                self.canvas_grafo.create_rectangle(coords, fill="white", outline="white")
-                self.canvas_grafo.lift(bbox_item)
+                
+                # fundo branco para o texto da aresta
+                text_id = self.canvas_grafo.create_text(label_x, label_y, text=movimento, font=("Arial", 10, "italic"), fill="darkgreen")
+                bbox = self.canvas_grafo.bbox(text_id)
+                self.canvas_grafo.create_rectangle(bbox, fill="white", outline="")
+                self.canvas_grafo.tag_raise(text_id)
 
+        for i, estado in enumerate(caminho):
+            x, y = posicoes_nos[i]
             self.canvas_grafo.create_oval(x - node_radius, y - node_radius, x + node_radius, y + node_radius, fill="lightblue", outline="black", width=2)
             self.canvas_grafo.create_text(x, y - node_radius - 15, text=f"q{i}", font=("Arial", 14, "bold"))
             self.canvas_grafo.create_text(x, y + node_radius + 20, text=str(estado), font=("Arial", 10), fill="black")
 
+    def _on_resize_animacao(self, event):
+        """Função 'debounced' para redesenhar a animação, se não estiver em curso."""
+        if self.animacao_em_curso: return
+        
+        if self._job_id_animacao:
+            self.after_cancel(self._job_id_animacao)
+        self._job_id_animacao = self.after(150, self._redraw_canvas_animacao)
+
+    def _redraw_canvas_animacao(self):
+        """Redesenha todo o conteúdo estático do canvas da animação."""
+        if not self.caminho_solucao: return
+        self.canvas_animacao.delete("all")
+        self._desenhar_cenario_animacao()
+        self.desenhar_estado_animacao(self.caminho_solucao[self.passo_atual_animacao])
+
+    def _desenhar_cenario_animacao(self):
+        w, h = self.canvas_animacao.winfo_width(), self.canvas_animacao.winfo_height()
+        if w < 2: return
+
+        for i in range(int(h * 0.7)):
+            r, g, b = 135 + int(90 * i / (h * 0.7)), 206 + int(40 * i / (h * 0.7)), 250
+            self.canvas_animacao.create_line(0, i, w, i, fill=f'#{r:02x}{g:02x}{b:02x}')
+        
+        self.canvas_animacao.create_oval(w*0.8, h*0.1, w*0.9, h*0.25, fill="#FFD700", outline="#FFA500")
+        self.canvas_animacao.create_oval(w*0.1, h*0.15, w*0.25, h*0.3, fill="white", outline="")
+        self.canvas_animacao.create_oval(w*0.18, h*0.1, w*0.3, h*0.25, fill="white", outline="")
+
+        for i in range(int(h * 0.7), h):
+            b = 180 - int(90 * (i - h * 0.7) / (h * 0.3))
+            self.canvas_animacao.create_line(0, i, w, i, fill=f'#4682{b:02x}')
+
+        margem_esq_x_fim = w * 0.25
+        margem_dir_x_inicio = w * 0.75
+        nivel_grama = h - 120
+
+        self.canvas_animacao.create_rectangle(0, nivel_grama, margem_esq_x_fim, h, fill="#A0522D", outline="#6B4226", width=2)
+        self.canvas_animacao.create_rectangle(margem_dir_x_inicio, nivel_grama, w, h, fill="#A0522D", outline="#6B4226", width=2)
+        self.canvas_animacao.create_rectangle(0, nivel_grama, margem_esq_x_fim, nivel_grama + 10, fill="#228B22", outline="")
+        self.canvas_animacao.create_rectangle(margem_dir_x_inicio, nivel_grama, w, nivel_grama + 10, fill="#228B22", outline="")
+        self.canvas_animacao.create_text(margem_esq_x_fim / 2, nivel_grama + 40, text="MARGEM ESQUERDA", font=("Arial", 12, "bold"), fill="white")
+        self.canvas_animacao.create_text(margem_dir_x_inicio + (w-margem_dir_x_inicio)/2, nivel_grama + 40, text="MARGEM DIREITA", font=("Arial", 12, "bold"), fill="white")
+    
     # metodos de animação
     def preparar_animacao(self):
         if self.animacao_em_curso: return
-
         self.passo_atual_animacao = 0
-        self.canvas_animacao.delete("all")
-
-        self.update_idletasks() 
-        w, h = self.canvas_animacao.winfo_width(), self.canvas_animacao.winfo_height()
-        if w < 2: w, h = 950, 600
-        
-        # margens
-        self.margem_esq_x_fim = w * 0.25
-        self.margem_dir_x_inicio = w * 0.75
-        self.nivel_grama = h - 120
-        
-        # cenário (nesse caso daqui é o gradiente)
-        for i in range(int(h * 0.7)):
-            r = 135 + int((90 * i) / (h * 0.7))
-            g = 206 + int((40 * i) / (h * 0.7))
-            b = 250
-            color = f'#{r:02x}{g:02x}{b:02x}'
-            self.canvas_animacao.create_line(0, i, w, i, fill=color)
-        
-        # nuvens e sol
-        self.canvas_animacao.create_oval(w * 0.8, h * 0.1, w * 0.9, h * 0.25, fill="#FFD700", outline="#FFA500")
-        self.canvas_animacao.create_oval(w * 0.1, h * 0.15, w * 0.25, h * 0.3, fill="white", outline="")
-        self.canvas_animacao.create_oval(w * 0.18, h * 0.1, w * 0.3, h * 0.25, fill="white", outline="")
-
-        # rio e grandiente do... rio porra
-        for i in range(int(h * 0.7), h):
-            b = 180 - int((90 * (i - h * 0.7)) / (h * 0.3))
-            color = f'#4682{b:02x}'
-            self.canvas_animacao.create_line(0, i, w, i, fill=color)
-
-        # margens - terra e grama
-        self.canvas_animacao.create_rectangle(0, self.nivel_grama, self.margem_esq_x_fim, h, fill="#A0522D", outline="#6B4226", width=2)
-        self.canvas_animacao.create_rectangle(self.margem_dir_x_inicio, self.nivel_grama, w, h, fill="#A0522D", outline="#6B4226", width=2)
-        self.canvas_animacao.create_rectangle(0, self.nivel_grama, self.margem_esq_x_fim, self.nivel_grama + 10, fill="#228B22", outline="")
-        self.canvas_animacao.create_rectangle(self.margem_dir_x_inicio, self.nivel_grama, w, self.nivel_grama + 10, fill="#228B22", outline="")
-
-        self.canvas_animacao.create_text(self.margem_esq_x_fim / 2, self.nivel_grama + 40, text="MARGEM ESQUERDA", font=("Arial", 12, "bold"), fill="white")
-        self.canvas_animacao.create_text(self.margem_dir_x_inicio + (w-self.margem_dir_x_inicio)/2, self.nivel_grama + 40, text="MARGEM DIREITA", font=("Arial", 12, "bold"), fill="white")
-
-        self.desenhar_estado_animacao(self.caminho_solucao[0])
+        self._redraw_canvas_animacao()
         self.start_anim_button.config(state="normal")
 
     def desenhar_estado_animacao(self, estado):
         self.canvas_animacao.delete("personagem")
-        
-        fazendeiro_pos, lobo_pos, cabra_pos, repolho_pos = estado
-        mapa_estado = {"fazendeiro": fazendeiro_pos, "lobo": lobo_pos, "cabra": cabra_pos, "repolho": repolho_pos}
-        
+        w, h = self.canvas_animacao.winfo_width(), self.canvas_animacao.winfo_height()
+        if w < 2: return
+
+        margem_esq_x_fim = w * 0.25
+        margem_dir_x_inicio = w * 0.75
+        nivel_grama = h - 120
+
+        mapa_estado = {"fazendeiro": estado[0], "lobo": estado[1], "cabra": estado[2], "repolho": estado[3]}
         itens_esquerda = [item for item, pos in mapa_estado.items() if pos == 'E']
         itens_direita = [item for item, pos in mapa_estado.items() if pos == 'D']
 
-        # y - personagens
-        y_pos = self.nivel_grama - 25 
-        x_spacing = 65
+        y_pos, x_spacing = nivel_grama - 25, 65
 
-        # esq
-        start_x_esq = (self.margem_esq_x_fim / 2) - (len(itens_esquerda) - 1) * x_spacing / 2
-        for i, item_key in enumerate(itens_esquerda):
-            x = start_x_esq + i * x_spacing
-            visual = self.item_visuals[item_key]
-            visual["id"] = self.canvas_animacao.create_image(x, y_pos, image=self.loaded_images[item_key], tags="personagem")
+        if itens_esquerda:
+            start_x = (margem_esq_x_fim / 2) - (len(itens_esquerda) - 1) * x_spacing / 2
+            for i, key in enumerate(itens_esquerda):
+                self.item_visuals[key]["id"] = self.canvas_animacao.create_image(start_x + i * x_spacing, y_pos, image=self.loaded_images[key], tags="personagem")
 
-        # dir
-        meio_margem_dir = self.margem_dir_x_inicio + (self.canvas_animacao.winfo_width() - self.margem_dir_x_inicio) / 2
-        start_x_dir = meio_margem_dir - (len(itens_direita) - 1) * x_spacing / 2
-        for i, item_key in enumerate(itens_direita):
-            x = start_x_dir + i * x_spacing
-            visual = self.item_visuals[item_key]
-            visual["id"] = self.canvas_animacao.create_image(x, y_pos, image=self.loaded_images[item_key], tags="personagem")
-
+        if itens_direita:
+            start_x = (margem_dir_x_inicio + w) / 2 - (len(itens_direita) - 1) * x_spacing / 2
+            for i, key in enumerate(itens_direita):
+                self.item_visuals[key]["id"] = self.canvas_animacao.create_image(start_x + i * x_spacing, y_pos, image=self.loaded_images[key], tags="personagem")
 
     def iniciar_animacao(self):
         if self.animacao_em_curso: return
@@ -299,7 +333,7 @@ class TravessiaApp(tk.Tk):
 
     def animar_passo(self):
         if self.passo_atual_animacao >= len(self.caminho_solucao) - 1:
-            self.canvas_animacao.delete(self.id_texto_acao)
+            if self.id_texto_acao: self.canvas_animacao.delete(self.id_texto_acao)
             self.id_texto_acao = self.canvas_animacao.create_text(self.winfo_width()/2, 50, text="Travessia Concluída! Parabéns!", font=("Arial", 22, "bold"), fill="#32CD32")
             self.animacao_em_curso = False
             self.solve_button.config(state="normal")
@@ -309,34 +343,32 @@ class TravessiaApp(tk.Tk):
         estado_anterior = self.caminho_solucao[self.passo_atual_animacao]
         estado_seguinte = self.caminho_solucao[self.passo_atual_animacao + 1]
 
-        passageiro_key = None
-        for item, index in AutomatoTravessia().item_map.items():
-            if estado_anterior[index] != estado_seguinte[index]:
-                passageiro_key = item
-                break
+        passageiro_key = next((item for item, index in AutomatoTravessia().item_map.items() if estado_anterior[index] != estado_seguinte[index]), None)
         
+        w, h = self.canvas_animacao.winfo_width(), self.canvas_animacao.winfo_height()
+        margem_esq_x_fim = w * 0.25
+        margem_dir_x_inicio = w * 0.75
+        nivel_grama = h - 120
+
+        y_barco = nivel_grama - 40
         direcao_de = estado_anterior[0]
-        
-        y_barco = self.nivel_grama - 40
-        x_partida = self.margem_esq_x_fim + 75 if direcao_de == 'E' else self.margem_dir_x_inicio - 75
-        x_chegada = self.margem_dir_x_inicio - 75 if direcao_de == 'E' else self.margem_esq_x_fim + 75
+        x_partida = margem_esq_x_fim + 75 if direcao_de == 'E' else margem_dir_x_inicio - 75
+        x_chegada = margem_dir_x_inicio - 75 if direcao_de == 'E' else margem_esq_x_fim + 75
         
         label_movimento = self._get_movimento_label(estado_anterior, estado_seguinte, AutomatoTravessia().item_map)
-        self.canvas_animacao.delete(self.id_texto_acao)
-        self.id_texto_acao = self.canvas_animacao.create_text(self.winfo_width()/2, 50, text=label_movimento, font=("Arial", 16, "italic"), fill="black")
+        if self.id_texto_acao: self.canvas_animacao.delete(self.id_texto_acao)
+        self.id_texto_acao = self.canvas_animacao.create_text(w/2, 50, text=label_movimento, font=("Arial", 16, "italic"), fill="black")
 
         self.id_barco = self.canvas_animacao.create_image(x_partida, y_barco, image=self.loaded_images["barco"], tags="barco")
         
         fazendeiro_id = self.item_visuals["fazendeiro"]["id"]
         fx, fy = self.canvas_animacao.coords(fazendeiro_id)
-        # ajustar posição do fazendeiro no baroco
         self.canvas_animacao.move(fazendeiro_id, x_partida - fx - 15, y_barco - fy + 3)
         self.canvas_animacao.tag_raise(fazendeiro_id) 
         
         if passageiro_key:
             passageiro_id = self.item_visuals[passageiro_key]["id"]
             px, py = self.canvas_animacao.coords(passageiro_id)
-            # ajusta passagero
             self.canvas_animacao.move(passageiro_id, x_partida - px + 25, y_barco - py + 10) 
             self.canvas_animacao.tag_raise(passageiro_id)
 
@@ -345,7 +377,6 @@ class TravessiaApp(tk.Tk):
     def movimento_suave(self, dx, dy, passageiro_key, passos=120, passo_atual=0):
         if passo_atual < passos:
             movimento_x = dx / passos
-            # movimentação vap vup tipo onda
             movimento_y = math.sin(passo_atual * math.pi / (passos / 4)) * 0.25 
 
             self.canvas_animacao.move(self.id_barco, movimento_x, movimento_y)
