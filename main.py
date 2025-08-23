@@ -4,7 +4,6 @@ from collections import deque
 import sys
 import math
 
-# Importando as bibliotecas para imagens (Pillow)
 try:
     from PIL import Image, ImageTk
 except ImportError:
@@ -100,7 +99,6 @@ class TravessiaApp(tk.Tk):
         self.canvas_animacao = tk.Canvas(self.tab_animacao, highlightthickness=0)
         self.canvas_animacao.pack(fill=tk.BOTH, expand=True)
 
-        # ATUALIZADO: Removido 'offset' e ajustado tamanhos para melhor encaixe horizontal
         self.item_visuals = {
             "fazendeiro": {"arquivo": "fazendeiro.png", "id": None, "size": (60, 60)},
             "lobo":       {"arquivo": "lobo.png",       "id": None, "size": (55, 55)},
