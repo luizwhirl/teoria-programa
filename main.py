@@ -7,7 +7,7 @@ import math
 try:
     from PIL import Image, ImageTk
 except ImportError:
-    messagebox.showerror("Biblioteca Faltando", "A biblioteca Pillow é necessária. Por favor, instale-a com 'pip install Pillow'")
+    messagebox.showerror("Biblioteca Faltando", "A biblioteca pillow tá faltando.")
     sys.exit()
 
 class AutomatoTravessia:
@@ -59,7 +59,7 @@ class AutomatoTravessia:
 class TravessiaApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Solucionador do Problema da Travessia")
+        self.title("Problema da Travessia")
         self.geometry("1000x750")
         self.minsize(800, 600)
 
