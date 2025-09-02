@@ -159,6 +159,9 @@ class TravessiaApp(tk.Tk):
         self.label_cabecote.pack(pady=2, padx=10, anchor="w")
         self.label_controle = ttk.Label(info_frame, text="Controle:", font=("Consolas", 14, "bold"))
         self.label_controle.pack(pady=5, padx=10, anchor="w")
+        
+        self.label_transicao = ttk.Label(info_frame, text="Transição:", font=("Consolas", 14, "bold"), foreground="blue")
+        self.label_transicao.pack(pady=5, padx=10, anchor="w")
 
         paned_window = ttk.PanedWindow(self.tab_automato_fixo, orient=tk.VERTICAL)
         paned_window.pack(expand=True, fill=tk.BOTH)
@@ -228,29 +231,35 @@ class TravessiaApp(tk.Tk):
         passo = self.automato_passo_atual
         
         fita_texto = " ".join(self.automato_fita)
-        self.label_fita.config(text=f"Fita:      {fita_texto}")
+        self.label_fita.config(text=f"Fita:       {fita_texto}")
 
         if passo < len(self.automato_fita):
             cabecote_pos = passo * 2
             cabecote_texto = (" " * cabecote_pos) + "↑"
-            self.label_cabecote.config(text=f"Cabeçote:  {cabecote_texto}")
+            self.label_cabecote.config(text=f"Cabeçote:   {cabecote_texto}")
         else:
             self.label_cabecote.config(text="Cabeçote:")
 
         estado_atual = self.automato_estados[passo]
-        self.label_controle.config(text=f"Controle:  {estado_atual}")
+        self.label_controle.config(text=f"Controle:   {estado_atual}")
+
+        if self.automato_animacao_em_curso and passo < len(self.automato_fita):
+            simbolo_lido = self.automato_fita[passo]
+            proximo_estado = self.automato_estados[passo + 1]
+            transicao_texto = f"δ({estado_atual}, {simbolo_lido}) = {proximo_estado}"
+            self.label_transicao.config(text=f"Transição: {transicao_texto}")
+        else:
+            self.label_transicao.config(text="Transição: -")
 
     def desenhar_diagrama_automato_fixo(self):
         canvas = self.canvas_diagrama_automato
         canvas.delete("all")
         
-        width = canvas.winfo_width()
-        height = canvas.winfo_height()
+        width, height = canvas.winfo_width(), canvas.winfo_height()
         if width < 50 or height < 50: return
 
         num_nodes = len(self.automato_estados)
-        padding_x = width * 0.10
-        padding_y = height * 0.5
+        padding_x, padding_y = width * 0.10, height * 0.5
         x_step = (width - 2 * padding_x) / (num_nodes - 1)
         node_radius = min(width * 0.035, height * 0.15, 25)
 
@@ -278,7 +287,7 @@ class TravessiaApp(tk.Tk):
             largura = 3 if is_active_state else 2
 
             canvas.create_oval(x - node_radius, y - node_radius, x + node_radius, y + node_radius, 
-                                fill=cor_fundo, outline=cor_borda, width=largura)
+                                  fill=cor_fundo, outline=cor_borda, width=largura)
             canvas.create_text(x, y, text=estado, font=("Arial", 14, "bold"))
 
     def _load_images(self):
@@ -478,7 +487,15 @@ class TravessiaApp(tk.Tk):
 
     def animar_passo(self):
         if self.passo_atual_animacao >= len(self.caminho_solucao) - 1:
-            self.canvas_animacao.create_text(self.winfo_width()/2, 50, text="Travessia Concluída! Parabéns!", font=("Arial", 22, "bold"), fill="#32CD32")
+            self.canvas_animacao.delete("acao_texto") 
+            
+            self.canvas_animacao.create_text(
+                self.winfo_width() / 2, 50, 
+                text="Travessia Concluída! Parabéns!", 
+                font=("Arial", 22, "bold"), 
+                fill="#32CD32", 
+                tags="fim_msg"
+            )
             self.animacao_em_curso = False
             self.solve_button.config(state="normal")
             self.reset_anim_button.config(state="normal")
