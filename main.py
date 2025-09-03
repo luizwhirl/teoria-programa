@@ -61,7 +61,6 @@ class TravessiaApp(tk.Tk):
         super().__init__()
         self.title("Problema da Travessia e Simulação de Autômatos")
         self.geometry("1000x850")
-
         self.resizable(False, False)
 
         self.caminho_solucao = None
@@ -203,7 +202,10 @@ class TravessiaApp(tk.Tk):
         if self.automato_passo_atual >= len(self.automato_fita):
             self.atualizar_info_automato_fixo()
             self.desenhar_diagrama_automato_fixo()
-
+            
+            # CORREÇÃO: Apaga o texto da ação anterior antes de mostrar a mensagem final
+            self.canvas_animacao_automato.delete("acao_texto")
+            
             self.canvas_animacao_automato.create_text(
                 self.canvas_animacao_automato.winfo_width() / 2, 50,
                 text="Fita processada. Simulação Concluída!", font=("Arial", 22, "bold"), fill="#32CD32", tags="fim_msg"
