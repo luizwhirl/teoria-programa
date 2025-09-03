@@ -61,7 +61,8 @@ class TravessiaApp(tk.Tk):
         super().__init__()
         self.title("Problema da Travessia e Simulação de Autômatos")
         self.geometry("1000x850")
-        self.minsize(800, 650)
+
+        self.resizable(False, False)
 
         self.caminho_solucao = None
         self.passo_atual_animacao = 0
@@ -202,9 +203,10 @@ class TravessiaApp(tk.Tk):
         if self.automato_passo_atual >= len(self.automato_fita):
             self.atualizar_info_automato_fixo()
             self.desenhar_diagrama_automato_fixo()
+
             self.canvas_animacao_automato.create_text(
                 self.canvas_animacao_automato.winfo_width() / 2, 50,
-                text="Simulação Concluída!", font=("Arial", 22, "bold"), fill="#32CD32", tags="fim_msg"
+                text="Fita processada. Simulação Concluída!", font=("Arial", 22, "bold"), fill="#32CD32", tags="fim_msg"
             )
             self.automato_animacao_em_curso = False
             self.automato_reset_button.config(state="normal")
@@ -280,14 +282,14 @@ class TravessiaApp(tk.Tk):
         for i, estado in enumerate(self.automato_estados):
             x, y = posicoes[estado]
             is_active_state = (i == self.automato_passo_atual) or \
-                              (self.automato_animacao_em_curso and i == self.automato_passo_atual + 1)
+                                (self.automato_animacao_em_curso and i == self.automato_passo_atual + 1)
             
             cor_borda = "red" if is_active_state else "black"
             cor_fundo = "gold" if is_active_state else "lightblue"
             largura = 3 if is_active_state else 2
 
             canvas.create_oval(x - node_radius, y - node_radius, x + node_radius, y + node_radius, 
-                                  fill=cor_fundo, outline=cor_borda, width=largura)
+                                    fill=cor_fundo, outline=cor_borda, width=largura)
             canvas.create_text(x, y, text=estado, font=("Arial", 14, "bold"))
 
     def _load_images(self):
